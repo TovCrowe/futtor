@@ -27,13 +27,13 @@ no de aguantarse.
 ## Roadmap por fases
 
 - **Fase 0 (actual):** tabla general, sin liguilla todavía.
-  - Entidades: `Torneo`, `Equipo`, `Partido`
+  - Entidades: `Tournament`, `Team`, `Match`
   - Endpoints:
     - `POST /api/torneos/{id}/partidos` — capturar resultado
     - `GET /api/torneos/{id}/tabla` — tabla calculada al vuelo desde los
       partidos jugados (PJ, PG, PE, PP, GF, GC, DG, Pts)
   - **La tabla nunca se persiste como entidad propia** — siempre se calcula
-    desde `Partido`, que es la única fuente de verdad. Evita bugs de
+    desde `Match`, que es la única fuente de verdad. Evita bugs de
     sincronización.
   - Puntos: victoria = 3, empate = 1, derrota = 0 (formato mexicano estándar,
     confirmar si se quiere cambiar)
@@ -44,18 +44,18 @@ no de aguantarse.
   - Partidos ida/vuelta o partido único (configurable)
   - Desempate en marcador global: mejor posición en tabla general → penales
     (NO usar regla de gol de visitante, ya no se usa en Liga MX)
-- **Fase 2 (stretch):** `Jugador`, goleo individual, tarjetas
+- **Fase 2 (stretch):** `Player`, goleo individual, tarjetas
 - **Fase 3 (stretch):** multi-torneo por organizador, login
 
 ## Estructura de paquetes
 
 ```
-com.tuusuario.torneotracker
+com.tov.futtor
 ├── torneo/
-│   ├── Torneo.java, Equipo.java, Partido.java
-│   ├── TorneoRepository.java, EquipoRepository.java, PartidoRepository.java
-│   ├── TorneoService.java       (incluye lógica de cálculo de tabla)
-│   ├── TorneoController.java
+│   ├── Tournament.java, Team.java, Match.java
+│   ├── TournamentRepository.java, TeamRepository.java, MatchRepository.java
+│   ├── TournamentService.java    (incluye lógica de cálculo de tabla)
+│   ├── TournamentController.java
 │   └── dto/          (nunca exponer entidades JPA directamente en la API)
 ├── liguilla/           (Fase 1+)
 └── config/
@@ -65,7 +65,9 @@ com.tuusuario.torneotracker
 
 - DTOs de respuesta separados de las entidades JPA
 - Capas: Controller → Service → Repository (sin lógica de negocio en el controller)
-- Nombres de campos/entidades en español (consistente con el dominio del proyecto)
+- Nombres de clases, entidades y campos en inglés (Tournament, Team, Match,
+  goalsHome...). Los nombres de paquetes se mantienen en español por dominio
+  (`torneo/`, `liguilla/`)
 - Lógica de cálculo de tabla vive en el Service, cubierta con tests unitarios
   desde el principio (es la parte más propensa a bugs sutiles: empates,
   criterios de desempate)
