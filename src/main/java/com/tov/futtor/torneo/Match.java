@@ -20,22 +20,22 @@ public class Match {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
-    @ManyToOne
+
     @NotNull
+    @ManyToOne
+    private Tournament tournament;
+
+    @NotNull
+    @ManyToOne
     private Team homeTeam;
 
-    @ManyToOne
     @NotNull
+    @ManyToOne
     private Team awayTeam;
 
     @NotNull
     @PositiveOrZero
     private Integer homeGoals;
-
-    @NotNull
-    @ManyToOne
-    private Tournament tournament;
 
     @NotNull
     @PositiveOrZero
