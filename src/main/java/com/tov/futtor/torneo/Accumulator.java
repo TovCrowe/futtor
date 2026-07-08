@@ -1,10 +1,12 @@
 package com.tov.futtor.torneo;
 
-public class Accumulator {
-    final Long teamId;
-    final String teamName;
-    private int points, goalsFor, goalsAgainst, goalDifference, matchesPlayed, wins, draws, losses;
+import lombok.Getter;
 
+@Getter
+public class Accumulator {
+    private final Long teamId;
+    private final String teamName;
+    private int points, goalsFor, goalsAgainst, goalDifference, matchesPlayed, wins, draws, losses;
 
     public Accumulator(Long teamId, String teamName) {
         this.teamId = teamId;
