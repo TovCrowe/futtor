@@ -12,6 +12,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.tov.futtor.torneo.dto.StandingsRowDto;
+import com.tov.futtor.torneo.entity.Match;
+import com.tov.futtor.torneo.entity.Team;
 
 @ExtendWith(MockitoExtension.class)
 class TournamentServiceTest {

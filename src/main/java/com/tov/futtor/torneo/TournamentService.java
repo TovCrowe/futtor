@@ -9,6 +9,11 @@ import org.springframework.stereotype.Service;
 
 import com.tov.futtor.torneo.dto.CreateMatchRequest;
 import com.tov.futtor.torneo.dto.StandingsRowDto;
+import com.tov.futtor.torneo.entity.Match;
+import com.tov.futtor.torneo.entity.Team;
+import com.tov.futtor.torneo.entity.Tournament;
+import com.tov.futtor.torneo.exception.TeamNotFoundException;
+import com.tov.futtor.torneo.exception.TournamentNotFoundException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -56,11 +61,11 @@ public class TournamentService {
 
     public void createMatch(Long tournamentId, CreateMatchRequest request) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
-                .orElseThrow(() -> new IllegalArgumentException("Tournament not found"));
+                .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
         Team homeTeam = teamRepository.findById(request.getHomeTeamId())
-                .orElseThrow(() -> new IllegalArgumentException("Home team not found"));
+                .orElseThrow(() -> new TeamNotFoundException(request.getHomeTeamId()));
         Team awayTeam = teamRepository.findById(request.getAwayTeamId())
-                .orElseThrow(() -> new IllegalArgumentException("Away team not found"));
+                .orElseThrow(() -> new TeamNotFoundException(request.getAwayTeamId()));
 
         Match match = new Match(tournament, homeTeam, awayTeam, request.getHomeTeamGoals(), request.getAwayTeamGoals());
         matchRepository.save(match);

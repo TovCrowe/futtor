@@ -1,12 +1,10 @@
-package com.tov.futtor.torneo;
+package com.tov.futtor.torneo.entity;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.ManyToOne;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -15,7 +13,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-public class Team {
+public class Tournament {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -24,12 +22,7 @@ public class Team {
     @NotBlank
     private String name;
 
-    @NotNull
-    @ManyToOne
-    private Tournament tournament;
-
-    public Team(String name, Tournament tournament) {
+    public Tournament(String name) {
         this.name = name;
-        this.tournament = tournament;
     }
 }

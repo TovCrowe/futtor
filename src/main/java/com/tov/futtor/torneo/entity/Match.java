@@ -1,4 +1,4 @@
-package com.tov.futtor.torneo;
+package com.tov.futtor.torneo.entity;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

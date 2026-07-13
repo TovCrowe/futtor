@@ -2,11 +2,13 @@ package com.tov.futtor.torneo.dto;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
+@AllArgsConstructor
 public class CreateMatchRequest {
     @NotNull
     private Long homeTeamId;
@@ -16,11 +18,4 @@ public class CreateMatchRequest {
     private int homeTeamGoals;
     @PositiveOrZero
     private int awayTeamGoals;
-
-    public CreateMatchRequest(Long homeTeamId, Long awayTeamId, int homeTeamGoals, int awayTeamGoals) {
-        this.homeTeamId = homeTeamId;
-        this.awayTeamId = awayTeamId;
-        this.homeTeamGoals = homeTeamGoals;
-        this.awayTeamGoals = awayTeamGoals;
-    }
 }
