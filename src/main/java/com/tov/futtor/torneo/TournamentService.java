@@ -12,6 +12,8 @@ import com.tov.futtor.torneo.dto.StandingsRowDto;
 import com.tov.futtor.torneo.entity.Match;
 import com.tov.futtor.torneo.entity.Team;
 import com.tov.futtor.torneo.entity.Tournament;
+import com.tov.futtor.torneo.exception.MatchInvalidException;
+import com.tov.futtor.torneo.exception.MatchInvalidExceptions;
 import com.tov.futtor.torneo.exception.TeamNotFoundException;
 import com.tov.futtor.torneo.exception.TournamentNotFoundException;
 
@@ -43,6 +45,10 @@ public class TournamentService {
             Accumulator homeTeam = accumulators.get(match.getHomeTeam().getId());
             Accumulator awayTeam = accumulators.get(match.getAwayTeam().getId());
 
+            if (homeTeam == null || awayTeam == null) {
+                throw new IllegalStateException("Match contains a team that is not part of the tournament");
+            }
+
             homeTeam.addMatchResult(match.getHomeGoals(), match.getAwayGoals());
             awayTeam.addMatchResult(match.getAwayGoals(), match.getHomeGoals());
         }
@@ -66,6 +72,14 @@ public class TournamentService {
                 .orElseThrow(() -> new TeamNotFoundException(request.getHomeTeamId()));
         Team awayTeam = teamRepository.findById(request.getAwayTeamId())
                 .orElseThrow(() -> new TeamNotFoundException(request.getAwayTeamId()));
+
+        if (!homeTeam.getTournament().getId().equals(tournamentId) || !awayTeam.getTournament().getId().equals(tournamentId)) {
+            throw new MatchInvalidException("Both teams must belong to the specified tournament");
+        }
+
+        if (homeTeam.getId().equals(awayTeam.getId())) {
+            throw new MatchInvalidException("A team cannot play against itself");
+        }
 
         Match match = new Match(tournament, homeTeam, awayTeam, request.getHomeTeamGoals(), request.getAwayTeamGoals());
         matchRepository.save(match);

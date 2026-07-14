@@ -15,4 +15,10 @@ public class TournamentExceptionHandler {
     public Map<String, String> handleNotFoundException(NotFoundException ex) {
         return Map.of("error", ex.getMessage());
     }
+
+    @ExceptionHandler(BadRequestException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, String> handleBadRequestException(BadRequestException ex) {
+        return Map.of("error", ex.getMessage());
+    }
 }
