@@ -33,11 +33,9 @@ public class Match {
     @ManyToOne
     private Team awayTeam;
 
-    @NotNull
     @PositiveOrZero
     private Integer homeGoals;
 
-    @NotNull
     @PositiveOrZero
     private Integer awayGoals;
 
@@ -47,5 +45,9 @@ public class Match {
         this.awayTeam = awayTeam;
         this.homeGoals = homeGoals;
         this.awayGoals = awayGoals;
+    }
+
+    public boolean getIsPlayed() {
+        return this.homeGoals != null && this.awayGoals != null;
     }
 }

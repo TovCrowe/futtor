@@ -22,7 +22,10 @@ public class Tournament {
     @NotBlank
     private String name;
 
+    private boolean isGenerated;
+
     public Tournament(String name) {
         this.name = name;
+        this.isGenerated = false;
     }
 }

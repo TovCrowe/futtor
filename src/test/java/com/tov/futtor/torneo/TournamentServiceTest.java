@@ -204,6 +204,24 @@ class TournamentServiceTest {
         assertThat(c1.getGoalDifference()).isZero();
     }
 
+    @Test
+    void standingsCountOnlyPlayedMatches() {
+        Team a = team(1L, "A");
+        Team b = team(2L, "B");
+        stubTournament(1L, List.of(a, b), List.of(
+                new Match(null, a, b, 2, 0),         // jugado
+                new Match(null, a, b, null, null)));  // pendiente (sin marcador)
+
+        List<StandingsRowDto> table = service.calculateStandings(1L);
+
+        // Solo el partido jugado cuenta; el pendiente se ignora (y no debe romper con NPE)
+        assertThat(rowFor(table, "A").getMatchesPlayed()).isEqualTo(1);
+        assertThat(rowFor(table, "A").getPoints()).isEqualTo(3);
+        assertThat(rowFor(table, "A").getGoalsFor()).isEqualTo(2);
+        assertThat(rowFor(table, "B").getMatchesPlayed()).isEqualTo(1);
+        assertThat(rowFor(table, "B").getPoints()).isZero();
+    }
+
     // --- createMatch tests -------------------------------------------------
 
     @Test

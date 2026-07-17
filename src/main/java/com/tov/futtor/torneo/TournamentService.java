@@ -17,6 +17,7 @@ import com.tov.futtor.torneo.exception.MatchInvalidException;
 import com.tov.futtor.torneo.exception.TeamNotFoundException;
 import com.tov.futtor.torneo.exception.TournamentNotFoundException;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -56,6 +57,10 @@ public class TournamentService {
                 throw new IllegalStateException("Match contains a team that is not part of the tournament");
             }
 
+            if (!match.getIsPlayed()) {
+                continue;
+            }
+
             homeTeam.addMatchResult(match.getHomeGoals(), match.getAwayGoals());
             awayTeam.addMatchResult(match.getAwayGoals(), match.getHomeGoals());
         }
@@ -69,8 +74,7 @@ public class TournamentService {
                         .thenComparingInt((StandingsRowDto row) -> row.getGoalDifference())
                         .thenComparingInt((StandingsRowDto row) -> row.getGoalsFor())
                         .reversed()
-                        .thenComparing((StandingsRowDto row) -> row.getTeamName())
-)
+                        .thenComparing((StandingsRowDto row) -> row.getTeamName()))
                 .toList();
     }
 
@@ -99,5 +103,35 @@ public class TournamentService {
                 .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
         Team team = new Team(teamRequest.getName(), tournament);
         teamRepository.save(team);
+    }
+
+    @Transactional
+    public void createMatchGamesAutomatically(Long tournamentId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
+
+        if (tournament.isGenerated()) {
+            throw new MatchInvalidException("Matches have already been generated for this tournament");
+        }
+
+        List<Team> teams = teamRepository.findByTournamentId(tournamentId);
+        if (teams.size() < 2) {
+            throw new MatchInvalidException("Not enough teams to create matches");
+        }
+
+        List<Match> existingMatches = matchRepository.findByTournamentId(tournamentId);
+        for (int i = 0; i < teams.size(); i++) {
+            for (int j = 0; j < teams.size(); j++) {
+                if (j == i) {
+                    continue;
+                }
+                Match match = new Match(tournament, teams.get(i), teams.get(j), null, null);
+                existingMatches.add(match);
+            }
+        }
+
+        tournament.setGenerated(true);
+        tournamentRepository.save(tournament);
+        matchRepository.saveAll(existingMatches);
     }
 }

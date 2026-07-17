@@ -46,4 +46,12 @@ public class TournamentController {
         tournamentService.createTeam(tournamentId, teamRequest);
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/{tournamentId}/generate-matches")
+    public ResponseEntity<Void> generateMatches(@PathVariable Long tournamentId) {
+        log.info("Generating matches for tournament {}", tournamentId);
+        tournamentService.createMatchGamesAutomatically(tournamentId);
+        return ResponseEntity.ok().build();
+    }
+    
 }
