@@ -2,6 +2,14 @@ package com.tov.futtor.torneo;
 
 import lombok.Getter;
 
+
+/**
+ * this class is used to accumulate the results of a team in a tournament.
+ * It keeps track of the team's points, goals for, goals against, goal difference, 
+ * matches played, wins, draws, and losses.
+ * It provides a method to add the result of a match to the accumulator, updating the relevant
+ * Accumulator
+ */
 @Getter
 public class Accumulator {
     private final Long teamId;

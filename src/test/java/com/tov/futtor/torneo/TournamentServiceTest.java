@@ -277,4 +277,25 @@ class TournamentServiceTest {
 
         verify(matchRepository, never()).save(any());
     }
+
+    @Test
+    void breaksPointTieByAlphabeticalOrder() {
+        Team a = team(1L, "A");
+        Team b = team(2L, "B");
+        Team c = team(3L, "C");
+        // A y B empatan a 3 pts; A tiene mejor DG (+3 vs +1)
+        stubTournament(1L, List.of(a, b, c), List.of(
+                new Match(null, a, c, 1, 0),
+                new Match(null, b, c, 1, 0)));
+
+        List<StandingsRowDto> table = service.calculateStandings(1L);
+
+        assertThat(rowFor(table, "A").getPoints()).isEqualTo(3);
+        assertThat(rowFor(table, "B").getPoints()).isEqualTo(3);
+        assertThat(rowFor(table, "A").getGoalDifference()).isEqualTo(1);
+        assertThat(rowFor(table, "B").getGoalDifference()).isEqualTo(1);
+        // A debe ir antes que B por orden alfabético
+        assertThat(table.get(0).getTeamName()).isEqualTo("A");
+        assertThat(table.get(1).getTeamName()).isEqualTo("B");
+    }
 }

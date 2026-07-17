@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.tov.futtor.torneo.TournamentService;
 import com.tov.futtor.torneo.dto.CreateMatchRequest;
+import com.tov.futtor.torneo.dto.CreateTeamRequest;
 import com.tov.futtor.torneo.dto.StandingsRowDto;
 
 import jakarta.validation.Valid;
@@ -37,5 +38,12 @@ public class TournamentController {
         log.info("Creating match for tournament {}: {} vs {} ({}-{})", tournamentId, request.getHomeTeamId(), request.getAwayTeamId(), request.getHomeTeamGoals(), request.getAwayTeamGoals());
         tournamentService.createMatch(tournamentId, request);
         return ResponseEntity.ok(request);
+    }
+
+    @PostMapping("/{tournamentId}/teams")
+    public ResponseEntity<Void> createTeam(@PathVariable Long tournamentId, @RequestBody @Valid CreateTeamRequest teamRequest) {
+        log.info("Creating team for tournament {}: {}", tournamentId, teamRequest.getName());
+        tournamentService.createTeam(tournamentId, teamRequest);
+        return ResponseEntity.ok().build();
     }
 }

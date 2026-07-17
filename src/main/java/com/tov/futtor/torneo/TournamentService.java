@@ -8,12 +8,12 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 
 import com.tov.futtor.torneo.dto.CreateMatchRequest;
+import com.tov.futtor.torneo.dto.CreateTeamRequest;
 import com.tov.futtor.torneo.dto.StandingsRowDto;
 import com.tov.futtor.torneo.entity.Match;
 import com.tov.futtor.torneo.entity.Team;
 import com.tov.futtor.torneo.entity.Tournament;
 import com.tov.futtor.torneo.exception.MatchInvalidException;
-import com.tov.futtor.torneo.exception.MatchInvalidExceptions;
 import com.tov.futtor.torneo.exception.TeamNotFoundException;
 import com.tov.futtor.torneo.exception.TournamentNotFoundException;
 
@@ -31,6 +31,13 @@ public class TournamentService {
         Tournament tournament = new Tournament(name);
         return tournamentRepository.save(tournament);
     }
+
+    /**
+     * Calculates the standings for a given tournament.
+     * It retrieves all teams and matches for the tournament, accumulates the results for each team
+     * @param tournamentId
+     * @return
+     */
 
     public List<StandingsRowDto> calculateStandings(Long tournamentId) {
         List<Team> teams = teamRepository.findByTournamentId(tournamentId);
@@ -61,7 +68,9 @@ public class TournamentService {
                         .comparingInt((StandingsRowDto row) -> row.getPoints())
                         .thenComparingInt((StandingsRowDto row) -> row.getGoalDifference())
                         .thenComparingInt((StandingsRowDto row) -> row.getGoalsFor())
-                        .reversed())
+                        .reversed()
+                        .thenComparing((StandingsRowDto row) -> row.getTeamName())
+)
                 .toList();
     }
 
@@ -83,5 +92,12 @@ public class TournamentService {
 
         Match match = new Match(tournament, homeTeam, awayTeam, request.getHomeTeamGoals(), request.getAwayTeamGoals());
         matchRepository.save(match);
+    }
+
+    public void createTeam(Long tournamentId, CreateTeamRequest teamRequest) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
+        Team team = new Team(teamRequest.getName(), tournament);
+        teamRepository.save(team);
     }
 }
