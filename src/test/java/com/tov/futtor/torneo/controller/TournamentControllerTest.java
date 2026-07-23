@@ -59,6 +59,15 @@ class TournamentControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void unexpectedErrorReturns500() throws Exception {
+        when(tournamentService.calculateStandings(1L))
+                .thenThrow(new RuntimeException("boom"));
+
+        mockMvc.perform(get("/api/tournaments/1/standings"))
+                .andExpect(status().isInternalServerError());
+    }
+
     // --- POST create team --------------------------------------------------
 
     @Test

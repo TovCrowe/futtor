@@ -6,13 +6,17 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.FieldError;
 
 @RestControllerAdvice
+@Slf4j
 public class TournamentExceptionHandler {
 
-    @ExceptionHandler({NotFoundException.class})
+    @ExceptionHandler({ NotFoundException.class })
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public Map<String, String> handleNotFoundException(NotFoundException ex) {
         return Map.of("error", ex.getMessage());
@@ -29,8 +33,15 @@ public class TournamentExceptionHandler {
     public Map<String, String> handleValidation(MethodArgumentNotValidException ex) {
         FieldError fieldError = ex.getBindingResult().getFieldError();
         return Map.of(
-        "error", fieldError != null ? fieldError.getDefaultMessage() : "Validación fallida",
-        "field", fieldError != null ? fieldError.getField() : "unknown"
-    );  
-  }
+                "error", fieldError != null ? fieldError.getDefaultMessage() : "Validación fallida",
+                "field", fieldError != null ? fieldError.getField() : "unknown");
+    }
+
+    @ExceptionHandler(Exception.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public Map<String, String> handleUnexpected(Exception ex) {
+        log.error("Unexpected error", ex);
+        return Map.of("error", "Internal server error");
+    }
+
 }

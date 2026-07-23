@@ -33,6 +33,7 @@ public class TournamentService {
     private final MatchRepository matchRepository;
     private final TeamRepository teamRepository;
 
+    @Transactional
     public Tournament createTournament(CreateTournamentRequest request) {
         Tournament tournament = new Tournament(request.getName());
         return tournamentRepository.save(tournament);
@@ -83,6 +84,7 @@ public class TournamentService {
                 .toList();
     }
 
+    @Transactional
     public void createTeam(Long tournamentId, CreateTeamRequest teamRequest) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
@@ -95,6 +97,7 @@ public class TournamentService {
         teamRepository.save(team);
     }
 
+    @Transactional
     public void updateTeam(Long tournamentId, Long teamId, UpdateTeamRequest request) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
@@ -113,6 +116,7 @@ public class TournamentService {
         teamRepository.save(team);
     }
 
+    @Transactional
     public void deleteTeam(Long tournamentId, Long teamId) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
@@ -160,6 +164,7 @@ public class TournamentService {
         matchRepository.saveAll(existingMatches);
     }
 
+    @Transactional
     public void updateMatch(Long tournamentId, Long matchId, UpdateMatchRequest request) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
