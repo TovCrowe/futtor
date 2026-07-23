@@ -11,4 +11,8 @@ public interface TeamRepository extends JpaRepository<Team, Long> {
 
     @Query("SELECT t FROM Team t WHERE t.tournament.id = :tournamentId")
     List<Team> findByTournamentId(Long tournamentId);
+
+    boolean existsByTournamentIdAndNameIgnoreCase(Long tournamentId, String name);
+
+    boolean existsByTournamentIdAndNameIgnoreCaseAndIdNot(Long tournamentId, String name, Long id);
 }

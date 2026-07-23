@@ -12,10 +12,13 @@ import com.tov.futtor.torneo.dto.CreateTournamentRequest;
 import com.tov.futtor.torneo.dto.MatchDTO;
 import com.tov.futtor.torneo.dto.StandingsRowDto;
 import com.tov.futtor.torneo.dto.UpdateMatchRequest;
+import com.tov.futtor.torneo.dto.UpdateTeamRequest;
 import com.tov.futtor.torneo.entity.Match;
 import com.tov.futtor.torneo.entity.Team;
 import com.tov.futtor.torneo.entity.Tournament;
 import com.tov.futtor.torneo.exception.MatchInvalidException;
+import com.tov.futtor.torneo.exception.TeamInvalidException;
+import com.tov.futtor.torneo.exception.TeamNotFoundException;
 import com.tov.futtor.torneo.exception.TournamentNotFoundException;
 
 import jakarta.transaction.Transactional;
@@ -82,8 +85,48 @@ public class TournamentService {
     public void createTeam(Long tournamentId, CreateTeamRequest teamRequest) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
+                
+        if (teamRepository.existsByTournamentIdAndNameIgnoreCase(tournamentId, teamRequest.getName())) {
+            throw new TeamInvalidException("A team with that name already exists in this tournament");
+        }
+                
         Team team = new Team(teamRequest.getName(), tournament);
         teamRepository.save(team);
+    }
+
+    public void updateTeam(Long tournamentId, Long teamId, UpdateTeamRequest request) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new TeamNotFoundException(teamId));
+
+        if (!team.getTournament().getId().equals(tournament.getId())) {
+            throw new TeamInvalidException("Team does not belong to the specified tournament");
+        }
+
+        if (teamRepository.existsByTournamentIdAndNameIgnoreCaseAndIdNot(tournamentId, request.getName(), teamId)) {
+            throw new TeamInvalidException("A team with that name already exists in this tournament");
+        }
+
+        team.setName(request.getName());
+        teamRepository.save(team);
+    }
+
+    public void deleteTeam(Long tournamentId, Long teamId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new TeamNotFoundException(teamId));
+
+        if (!team.getTournament().getId().equals(tournament.getId())) {
+            throw new TeamInvalidException("Team does not belong to the specified tournament");
+        }
+
+        if (tournament.isGenerated()) {
+            throw new TeamInvalidException("Cannot delete a team after the fixture has been generated");
+        }
+
+        teamRepository.delete(team);
     }
 
     @Transactional

@@ -20,12 +20,16 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.tov.futtor.torneo.dto.CreateTeamRequest;
 import com.tov.futtor.torneo.dto.StandingsRowDto;
 import com.tov.futtor.torneo.dto.UpdateMatchRequest;
+import com.tov.futtor.torneo.dto.UpdateTeamRequest;
 import com.tov.futtor.torneo.entity.Match;
 import com.tov.futtor.torneo.entity.Team;
 import com.tov.futtor.torneo.entity.Tournament;
 import com.tov.futtor.torneo.exception.MatchInvalidException;
+import com.tov.futtor.torneo.exception.TeamInvalidException;
+import com.tov.futtor.torneo.exception.TeamNotFoundException;
 import com.tov.futtor.torneo.exception.TournamentNotFoundException;
 
 @ExtendWith(MockitoExtension.class)
@@ -302,6 +306,139 @@ class TournamentServiceTest {
         // A debe ir antes que B por orden alfabético
         assertThat(table.get(0).getTeamName()).isEqualTo("A");
         assertThat(table.get(1).getTeamName()).isEqualTo("B");
+    }
+
+    // --- createTeam tests --------------------------------------------------
+
+    @Test
+    void createTeamSavesWhenNameIsUnique() {
+        Tournament tournament = tournament(1L, "Liga");
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(teamRepository.existsByTournamentIdAndNameIgnoreCase(1L, "A")).thenReturn(false);
+
+        service.createTeam(1L, new CreateTeamRequest("A"));
+
+        verify(teamRepository).save(any());
+    }
+
+    @Test
+    void createTeamThrowsWhenNameDuplicated() {
+        Tournament tournament = tournament(1L, "Liga");
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(teamRepository.existsByTournamentIdAndNameIgnoreCase(1L, "A")).thenReturn(true);
+
+        assertThatThrownBy(() -> service.createTeam(1L, new CreateTeamRequest("A")))
+                .isInstanceOf(TeamInvalidException.class);
+
+        verify(teamRepository, never()).save(any());
+    }
+
+    @Test
+    void createTeamThrowsWhenTournamentNotFound() {
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.createTeam(1L, new CreateTeamRequest("A")))
+                .isInstanceOf(TournamentNotFoundException.class);
+
+        verify(teamRepository, never()).save(any());
+    }
+
+    // --- updateTeam tests --------------------------------------------------
+
+    @Test
+    void updateTeamRenamesWhenValid() {
+        Tournament tournament = tournament(1L, "Liga");
+        Team team = teamIn(10L, "Old", tournament);
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(team));
+        when(teamRepository.existsByTournamentIdAndNameIgnoreCaseAndIdNot(1L, "New", 10L)).thenReturn(false);
+
+        service.updateTeam(1L, 10L, new UpdateTeamRequest("New"));
+
+        assertThat(team.getName()).isEqualTo("New");
+        verify(teamRepository).save(team);
+    }
+
+    @Test
+    void updateTeamThrowsWhenNameDuplicated() {
+        Tournament tournament = tournament(1L, "Liga");
+        Team team = teamIn(10L, "Old", tournament);
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(team));
+        when(teamRepository.existsByTournamentIdAndNameIgnoreCaseAndIdNot(1L, "Taken", 10L)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.updateTeam(1L, 10L, new UpdateTeamRequest("Taken")))
+                .isInstanceOf(TeamInvalidException.class);
+
+        verify(teamRepository, never()).save(any());
+    }
+
+    @Test
+    void updateTeamThrowsWhenTeamBelongsToAnotherTournament() {
+        Tournament tournament = tournament(1L, "Liga");
+        Tournament other = tournament(2L, "Otra Liga");
+        Team team = teamIn(10L, "A", other);
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(team));
+
+        assertThatThrownBy(() -> service.updateTeam(1L, 10L, new UpdateTeamRequest("B")))
+                .isInstanceOf(TeamInvalidException.class);
+
+        verify(teamRepository, never()).save(any());
+    }
+
+    @Test
+    void updateTeamThrowsWhenTeamNotFound() {
+        Tournament tournament = tournament(1L, "Liga");
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(teamRepository.findById(10L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.updateTeam(1L, 10L, new UpdateTeamRequest("B")))
+                .isInstanceOf(TeamNotFoundException.class);
+
+        verify(teamRepository, never()).save(any());
+    }
+
+    // --- deleteTeam tests --------------------------------------------------
+
+    @Test
+    void deleteTeamRemovesWhenFixtureNotGenerated() {
+        Tournament tournament = tournament(1L, "Liga"); // isGenerated == false
+        Team team = teamIn(10L, "A", tournament);
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(team));
+
+        service.deleteTeam(1L, 10L);
+
+        verify(teamRepository).delete(team);
+    }
+
+    @Test
+    void deleteTeamThrowsWhenFixtureAlreadyGenerated() {
+        Tournament tournament = tournament(1L, "Liga");
+        tournament.setGenerated(true);
+        Team team = teamIn(10L, "A", tournament);
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(team));
+
+        assertThatThrownBy(() -> service.deleteTeam(1L, 10L))
+                .isInstanceOf(TeamInvalidException.class);
+
+        verify(teamRepository, never()).delete(any());
+    }
+
+    @Test
+    void deleteTeamThrowsWhenTeamBelongsToAnotherTournament() {
+        Tournament tournament = tournament(1L, "Liga");
+        Tournament other = tournament(2L, "Otra Liga");
+        Team team = teamIn(10L, "A", other);
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(team));
+
+        assertThatThrownBy(() -> service.deleteTeam(1L, 10L))
+                .isInstanceOf(TeamInvalidException.class);
+
+        verify(teamRepository, never()).delete(any());
     }
 
     // --- generación de fixture (ida y vuelta) ------------------------------
