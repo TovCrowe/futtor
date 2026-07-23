@@ -11,9 +11,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tov.futtor.torneo.TournamentService;
-import com.tov.futtor.torneo.dto.CreateMatchRequest;
 import com.tov.futtor.torneo.dto.CreateTeamRequest;
+import com.tov.futtor.torneo.dto.CreateTournamentRequest;
+import com.tov.futtor.torneo.dto.MatchDTO;
 import com.tov.futtor.torneo.dto.StandingsRowDto;
+import com.tov.futtor.torneo.dto.UpdateMatchRequest;
+import com.tov.futtor.torneo.entity.Tournament;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,13 +36,6 @@ public class TournamentController {
         return ResponseEntity.ok(tournamentService.calculateStandings(tournamentId));
     }
 
-    @PostMapping("/{tournamentId}/matches")
-    public ResponseEntity<CreateMatchRequest> createMatch(@PathVariable Long tournamentId, @RequestBody @Valid CreateMatchRequest request) {
-        log.info("Creating match for tournament {}: {} vs {} ({}-{})", tournamentId, request.getHomeTeamId(), request.getAwayTeamId(), request.getHomeTeamGoals(), request.getAwayTeamGoals());
-        tournamentService.createMatch(tournamentId, request);
-        return ResponseEntity.ok(request);
-    }
-
     @PostMapping("/{tournamentId}/teams")
     public ResponseEntity<Void> createTeam(@PathVariable Long tournamentId, @RequestBody @Valid CreateTeamRequest teamRequest) {
         log.info("Creating team for tournament {}: {}", tournamentId, teamRequest.getName());
@@ -54,4 +50,20 @@ public class TournamentController {
         return ResponseEntity.ok().build();
     }
     
+    @PostMapping("/{tournamentId}/{matchId}/update-match")
+    public ResponseEntity<Void> updateMatch(@PathVariable Long tournamentId, @PathVariable Long matchId, @RequestBody @Valid UpdateMatchRequest matchRequest) {
+        tournamentService.updateMatch(tournamentId, matchId, matchRequest);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/create-tournament")
+    public ResponseEntity<Long> createTournament(@RequestBody @Valid CreateTournamentRequest request) {
+        Tournament tournament = tournamentService.createTournament(request);
+        return ResponseEntity.ok(tournament.getId());
+    }
+
+    @GetMapping("/{tournamentId}/matches")
+    public ResponseEntity<List<MatchDTO>> getMatches(@PathVariable Long tournamentId) {
+        return ResponseEntity.ok(tournamentService.getMatches(tournamentId));
+    }
 }

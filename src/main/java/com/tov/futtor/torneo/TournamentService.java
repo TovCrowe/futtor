@@ -7,14 +7,15 @@ import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
-import com.tov.futtor.torneo.dto.CreateMatchRequest;
 import com.tov.futtor.torneo.dto.CreateTeamRequest;
+import com.tov.futtor.torneo.dto.CreateTournamentRequest;
+import com.tov.futtor.torneo.dto.MatchDTO;
 import com.tov.futtor.torneo.dto.StandingsRowDto;
+import com.tov.futtor.torneo.dto.UpdateMatchRequest;
 import com.tov.futtor.torneo.entity.Match;
 import com.tov.futtor.torneo.entity.Team;
 import com.tov.futtor.torneo.entity.Tournament;
 import com.tov.futtor.torneo.exception.MatchInvalidException;
-import com.tov.futtor.torneo.exception.TeamNotFoundException;
 import com.tov.futtor.torneo.exception.TournamentNotFoundException;
 
 import jakarta.transaction.Transactional;
@@ -28,8 +29,8 @@ public class TournamentService {
     private final MatchRepository matchRepository;
     private final TeamRepository teamRepository;
 
-    public Tournament createTournament(String name) {
-        Tournament tournament = new Tournament(name);
+    public Tournament createTournament(CreateTournamentRequest request) {
+        Tournament tournament = new Tournament(request.getName());
         return tournamentRepository.save(tournament);
     }
 
@@ -78,26 +79,6 @@ public class TournamentService {
                 .toList();
     }
 
-    public void createMatch(Long tournamentId, CreateMatchRequest request) {
-        Tournament tournament = tournamentRepository.findById(tournamentId)
-                .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
-        Team homeTeam = teamRepository.findById(request.getHomeTeamId())
-                .orElseThrow(() -> new TeamNotFoundException(request.getHomeTeamId()));
-        Team awayTeam = teamRepository.findById(request.getAwayTeamId())
-                .orElseThrow(() -> new TeamNotFoundException(request.getAwayTeamId()));
-
-        if (!homeTeam.getTournament().getId().equals(tournamentId) || !awayTeam.getTournament().getId().equals(tournamentId)) {
-            throw new MatchInvalidException("Both teams must belong to the specified tournament");
-        }
-
-        if (homeTeam.getId().equals(awayTeam.getId())) {
-            throw new MatchInvalidException("A team cannot play against itself");
-        }
-
-        Match match = new Match(tournament, homeTeam, awayTeam, request.getHomeTeamGoals(), request.getAwayTeamGoals());
-        matchRepository.save(match);
-    }
-
     public void createTeam(Long tournamentId, CreateTeamRequest teamRequest) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
@@ -133,5 +114,37 @@ public class TournamentService {
         tournament.setGenerated(true);
         tournamentRepository.save(tournament);
         matchRepository.saveAll(existingMatches);
+    }
+
+    public void updateMatch(Long tournamentId, Long matchId, UpdateMatchRequest request) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
+
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new MatchInvalidException("Match not found"));
+
+        if (!match.getTournament().getId().equals(tournament.getId())) {
+            throw new MatchInvalidException("Match does not belong to the specified tournament");
+        }
+
+        match.setHomeGoals(request.getHomeTeamGoals());
+        match.setAwayGoals(request.getAwayTeamGoals());
+        matchRepository.save(match);
+    }
+
+    public List<MatchDTO> getMatches(Long tournamentId) {
+        tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
+
+        List<Match> matches = matchRepository.findByTournamentId(tournamentId);
+
+        return matches.stream()
+                .map(match -> new MatchDTO(
+                        match.getId(),
+                        match.getHomeTeam().getName(),
+                        match.getAwayTeam().getName(),
+                        match.getHomeGoals(),
+                        match.getAwayGoals()))
+                .toList();
     }
 }

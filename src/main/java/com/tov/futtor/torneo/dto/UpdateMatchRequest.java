@@ -4,18 +4,14 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.Setter;
 
 @Getter
-@Setter
 @AllArgsConstructor
-public class CreateMatchRequest {
+public class UpdateMatchRequest {
     @NotNull
-    private Long homeTeamId;
+    @PositiveOrZero
+    private Integer homeTeamGoals;
     @NotNull
-    private Long awayTeamId;
     @PositiveOrZero
-    private int homeTeamGoals;
-    @PositiveOrZero
-    private int awayTeamGoals;
+    private Integer awayTeamGoals;
 }

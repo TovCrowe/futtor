@@ -7,8 +7,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,13 +20,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.tov.futtor.torneo.dto.CreateMatchRequest;
 import com.tov.futtor.torneo.dto.StandingsRowDto;
+import com.tov.futtor.torneo.dto.UpdateMatchRequest;
 import com.tov.futtor.torneo.entity.Match;
 import com.tov.futtor.torneo.entity.Team;
 import com.tov.futtor.torneo.entity.Tournament;
 import com.tov.futtor.torneo.exception.MatchInvalidException;
-import com.tov.futtor.torneo.exception.TeamNotFoundException;
 import com.tov.futtor.torneo.exception.TournamentNotFoundException;
 
 @ExtendWith(MockitoExtension.class)
@@ -222,75 +224,60 @@ class TournamentServiceTest {
         assertThat(rowFor(table, "B").getPoints()).isZero();
     }
 
-    // --- createMatch tests -------------------------------------------------
+    // --- updateMatch tests -------------------------------------------------
 
     @Test
-    void createMatchSavesMatchWhenValid() {
+    void updateMatchSetsGoalsWhenValid() {
         Tournament tournament = tournament(1L, "Liga");
         Team home = teamIn(10L, "A", tournament);
         Team away = teamIn(20L, "B", tournament);
+        Match match = new Match(tournament, home, away, null, null); // pendiente
         when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
-        when(teamRepository.findById(10L)).thenReturn(Optional.of(home));
-        when(teamRepository.findById(20L)).thenReturn(Optional.of(away));
+        when(matchRepository.findById(100L)).thenReturn(Optional.of(match));
 
-        service.createMatch(1L, new CreateMatchRequest(10L, 20L, 2, 1));
+        service.updateMatch(1L, 100L, new UpdateMatchRequest(2, 1));
 
         ArgumentCaptor<Match> captor = ArgumentCaptor.forClass(Match.class);
         verify(matchRepository).save(captor.capture());
         Match saved = captor.getValue();
-        assertThat(saved.getTournament()).isSameAs(tournament);
-        assertThat(saved.getHomeTeam()).isSameAs(home);
-        assertThat(saved.getAwayTeam()).isSameAs(away);
         assertThat(saved.getHomeGoals()).isEqualTo(2);
         assertThat(saved.getAwayGoals()).isEqualTo(1);
+        assertThat(saved.getIsPlayed()).isTrue();
     }
 
     @Test
-    void createMatchThrowsWhenTournamentNotFound() {
+    void updateMatchThrowsWhenTournamentNotFound() {
         when(tournamentRepository.findById(1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.createMatch(1L, new CreateMatchRequest(10L, 20L, 2, 1)))
+        assertThatThrownBy(() -> service.updateMatch(1L, 100L, new UpdateMatchRequest(2, 1)))
                 .isInstanceOf(TournamentNotFoundException.class);
 
         verify(matchRepository, never()).save(any());
     }
 
     @Test
-    void createMatchThrowsWhenHomeTeamNotFound() {
+    void updateMatchThrowsWhenMatchNotFound() {
         Tournament tournament = tournament(1L, "Liga");
         when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
-        when(teamRepository.findById(10L)).thenReturn(Optional.empty());
+        when(matchRepository.findById(100L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.createMatch(1L, new CreateMatchRequest(10L, 20L, 2, 1)))
-                .isInstanceOf(TeamNotFoundException.class);
-
-        verify(matchRepository, never()).save(any());
-    }
-
-    @Test
-    void createMatchThrowsWhenTeamBelongsToAnotherTournament() {
-        Tournament tournament = tournament(1L, "Liga");
-        Tournament other = tournament(2L, "Otra Liga");
-        Team home = teamIn(10L, "A", other); // pertenece a otro torneo
-        Team away = teamIn(20L, "B", tournament);
-        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
-        when(teamRepository.findById(10L)).thenReturn(Optional.of(home));
-        when(teamRepository.findById(20L)).thenReturn(Optional.of(away));
-
-        assertThatThrownBy(() -> service.createMatch(1L, new CreateMatchRequest(10L, 20L, 2, 1)))
+        assertThatThrownBy(() -> service.updateMatch(1L, 100L, new UpdateMatchRequest(2, 1)))
                 .isInstanceOf(MatchInvalidException.class);
 
         verify(matchRepository, never()).save(any());
     }
 
     @Test
-    void createMatchThrowsWhenTeamPlaysAgainstItself() {
+    void updateMatchThrowsWhenMatchBelongsToAnotherTournament() {
         Tournament tournament = tournament(1L, "Liga");
-        Team team = teamIn(10L, "A", tournament);
+        Tournament other = tournament(2L, "Otra Liga");
+        Team home = teamIn(10L, "A", other);
+        Team away = teamIn(20L, "B", other);
+        Match match = new Match(other, home, away, null, null); // match de otro torneo
         when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
-        when(teamRepository.findById(10L)).thenReturn(Optional.of(team));
+        when(matchRepository.findById(100L)).thenReturn(Optional.of(match));
 
-        assertThatThrownBy(() -> service.createMatch(1L, new CreateMatchRequest(10L, 10L, 2, 1)))
+        assertThatThrownBy(() -> service.updateMatch(1L, 100L, new UpdateMatchRequest(2, 1)))
                 .isInstanceOf(MatchInvalidException.class);
 
         verify(matchRepository, never()).save(any());
@@ -315,5 +302,65 @@ class TournamentServiceTest {
         // A debe ir antes que B por orden alfabético
         assertThat(table.get(0).getTeamName()).isEqualTo("A");
         assertThat(table.get(1).getTeamName()).isEqualTo("B");
+    }
+
+    // --- generación de fixture (ida y vuelta) ------------------------------
+
+    @Test
+    void generatesHomeAndAwayForEachPair() {
+        Tournament tournament = tournament(1L, "Liga");
+        Team a = team(1L, "A");
+        Team b = team(2L, "B");
+        Team c = team(3L, "C");
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(teamRepository.findByTournamentId(1L)).thenReturn(List.of(a, b, c));
+        when(matchRepository.findByTournamentId(1L)).thenReturn(new ArrayList<>());
+
+        service.createMatchGamesAutomatically(1L);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<Match>> captor = ArgumentCaptor.forClass(List.class);
+        verify(matchRepository).saveAll(captor.capture());
+        List<Match> saved = captor.getValue();
+
+        // N*(N-1) = 3*2 = 6 partidos (ida y vuelta)
+        assertThat(saved).hasSize(6);
+        // todos nacen pendientes (sin marcador)
+        assertThat(saved).allMatch(m -> !m.getIsPlayed());
+        // ninguno contra sí mismo
+        assertThat(saved).noneMatch(m -> m.getHomeTeam().getId().equals(m.getAwayTeam().getId()));
+        // cada par ordenado exactamente una vez (local/visitante invertido)
+        Set<String> pairs = saved.stream()
+                .map(m -> m.getHomeTeam().getId() + "-" + m.getAwayTeam().getId())
+                .collect(Collectors.toSet());
+        assertThat(pairs).containsExactlyInAnyOrder(
+                "1-2", "2-1", "1-3", "3-1", "2-3", "3-2");
+        // el flag queda marcado como generado
+        assertThat(tournament.isGenerated()).isTrue();
+    }
+
+    @Test
+    void generateThrowsWhenLessThanTwoTeams() {
+        Tournament tournament = tournament(1L, "Liga");
+        Team a = team(1L, "A");
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(teamRepository.findByTournamentId(1L)).thenReturn(List.of(a));
+
+        assertThatThrownBy(() -> service.createMatchGamesAutomatically(1L))
+                .isInstanceOf(MatchInvalidException.class);
+
+        verify(matchRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void generateThrowsWhenAlreadyGenerated() {
+        Tournament tournament = tournament(1L, "Liga");
+        tournament.setGenerated(true);
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+
+        assertThatThrownBy(() -> service.createMatchGamesAutomatically(1L))
+                .isInstanceOf(MatchInvalidException.class);
+
+        verify(matchRepository, never()).saveAll(any());
     }
 }
