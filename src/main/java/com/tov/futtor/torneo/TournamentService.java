@@ -11,6 +11,7 @@ import com.tov.futtor.torneo.dto.CreateTeamRequest;
 import com.tov.futtor.torneo.dto.CreateTournamentRequest;
 import com.tov.futtor.torneo.dto.MatchDTO;
 import com.tov.futtor.torneo.dto.StandingsRowDto;
+import com.tov.futtor.torneo.dto.TournamentDto;
 import com.tov.futtor.torneo.dto.UpdateMatchRequest;
 import com.tov.futtor.torneo.dto.UpdateTeamRequest;
 import com.tov.futtor.torneo.entity.Match;
@@ -188,6 +189,12 @@ public class TournamentService {
                         match.getAwayTeam().getName(),
                         match.getHomeGoals(),
                         match.getAwayGoals()))
+                .toList();
+    }
+
+    public List<TournamentDto> getTournaments() {
+        return tournamentRepository.findAll().stream()
+                .map(t -> new TournamentDto(t.getId(), t.getName(), t.isGenerated()))
                 .toList();
     }
 }

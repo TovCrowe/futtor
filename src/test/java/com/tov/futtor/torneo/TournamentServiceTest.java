@@ -22,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.tov.futtor.torneo.dto.CreateTeamRequest;
 import com.tov.futtor.torneo.dto.StandingsRowDto;
+import com.tov.futtor.torneo.dto.TournamentDto;
 import com.tov.futtor.torneo.dto.UpdateMatchRequest;
 import com.tov.futtor.torneo.dto.UpdateTeamRequest;
 import com.tov.futtor.torneo.entity.Match;
@@ -499,5 +500,34 @@ class TournamentServiceTest {
                 .isInstanceOf(MatchInvalidException.class);
 
         verify(matchRepository, never()).saveAll(any());
+    }
+
+    // --- getTournaments tests ----------------------------------------------
+
+    @Test
+    void getTournamentsReturnsMappedList() {
+        Tournament liga = tournament(1L, "Liga");
+        Tournament copa = tournament(2L, "Copa");
+        copa.setGenerated(true);
+        when(tournamentRepository.findAll()).thenReturn(List.of(liga, copa));
+
+        List<TournamentDto> result = service.getTournaments();
+
+        assertThat(result).hasSize(2);
+        TournamentDto first = result.get(0);
+        assertThat(first.getId()).isEqualTo(1L);
+        assertThat(first.getName()).isEqualTo("Liga");
+        assertThat(first.isGenerated()).isFalse();
+        TournamentDto second = result.get(1);
+        assertThat(second.getId()).isEqualTo(2L);
+        assertThat(second.getName()).isEqualTo("Copa");
+        assertThat(second.isGenerated()).isTrue();
+    }
+
+    @Test
+    void getTournamentsReturnsEmptyWhenNone() {
+        when(tournamentRepository.findAll()).thenReturn(List.of());
+
+        assertThat(service.getTournaments()).isEmpty();
     }
 }

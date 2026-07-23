@@ -17,6 +17,7 @@ import com.tov.futtor.torneo.dto.CreateTeamRequest;
 import com.tov.futtor.torneo.dto.CreateTournamentRequest;
 import com.tov.futtor.torneo.dto.MatchDTO;
 import com.tov.futtor.torneo.dto.StandingsRowDto;
+import com.tov.futtor.torneo.dto.TournamentDto;
 import com.tov.futtor.torneo.dto.UpdateMatchRequest;
 import com.tov.futtor.torneo.dto.UpdateTeamRequest;
 import com.tov.futtor.torneo.entity.Tournament;
@@ -83,5 +84,10 @@ public class TournamentController {
     @GetMapping("/{tournamentId}/matches")
     public ResponseEntity<List<MatchDTO>> getMatches(@PathVariable Long tournamentId) {
         return ResponseEntity.ok(tournamentService.getMatches(tournamentId));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<TournamentDto>> getTournaments() {
+        return ResponseEntity.ok(tournamentService.getTournaments());
     }
 }
