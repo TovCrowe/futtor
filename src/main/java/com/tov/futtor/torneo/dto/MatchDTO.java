@@ -9,6 +9,8 @@ import lombok.Setter;
 @AllArgsConstructor
 public class MatchDTO {
     private Long id;
+    private Long homeTeamId;
+    private Long awayTeamId;
     private String homeTeamName;
     private String awayTeamName;
     private Integer homeTeamGoals;

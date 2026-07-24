@@ -21,17 +21,27 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.tov.futtor.torneo.dto.CreateTeamRequest;
+import com.tov.futtor.torneo.dto.ScorerDto;
 import com.tov.futtor.torneo.dto.StandingsRowDto;
+import com.tov.futtor.torneo.dto.UpdateScorersRequest;
 import com.tov.futtor.torneo.dto.TournamentDto;
 import com.tov.futtor.torneo.dto.UpdateMatchRequest;
 import com.tov.futtor.torneo.dto.UpdateTeamRequest;
 import com.tov.futtor.torneo.entity.Match;
+import com.tov.futtor.torneo.entity.Player;
+import com.tov.futtor.torneo.entity.Scorer;
 import com.tov.futtor.torneo.entity.Team;
 import com.tov.futtor.torneo.entity.Tournament;
 import com.tov.futtor.torneo.exception.MatchInvalidException;
+import com.tov.futtor.torneo.exception.ScorerInvalidException;
 import com.tov.futtor.torneo.exception.TeamInvalidException;
 import com.tov.futtor.torneo.exception.TeamNotFoundException;
 import com.tov.futtor.torneo.exception.TournamentNotFoundException;
+import com.tov.futtor.torneo.repository.MatchRepository;
+import com.tov.futtor.torneo.repository.PlayerRepository;
+import com.tov.futtor.torneo.repository.ScorerRepository;
+import com.tov.futtor.torneo.repository.TeamRepository;
+import com.tov.futtor.torneo.repository.TournamentRepository;
 
 @ExtendWith(MockitoExtension.class)
 class TournamentServiceTest {
@@ -44,6 +54,12 @@ class TournamentServiceTest {
 
     @Mock
     TournamentRepository tournamentRepository;
+
+    @Mock
+    PlayerRepository playerRepository;
+
+    @Mock
+    ScorerRepository scorerRepository;
 
     @InjectMocks
     TournamentService service;
@@ -529,5 +545,174 @@ class TournamentServiceTest {
         when(tournamentRepository.findAll()).thenReturn(List.of());
 
         assertThat(service.getTournaments()).isEmpty();
+    }
+
+    // --- goleo por partido (marcador derivado) -----------------------------
+
+    private Player player(Long id, String name, Team team) {
+        Player p = new Player(name, team);
+        p.setId(id);
+        return p;
+    }
+
+    /** Arma un partido con plantillas de 2 jugadores por equipo y lo deja stubbeado. */
+    private Match matchWithSquads(Tournament tournament, Team home, Team away, List<Player> homeSquad,
+            List<Player> awaySquad) {
+        Match match = new Match(tournament, home, away, null, null);
+        match.setId(100L);
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(matchRepository.findById(100L)).thenReturn(Optional.of(match));
+        when(playerRepository.findByTeamId(home.getId())).thenReturn(homeSquad);
+        when(playerRepository.findByTeamId(away.getId())).thenReturn(awaySquad);
+        return match;
+    }
+
+    @Test
+    void matchScoreIsDerivedFromPlayerGoals() {
+        Tournament tournament = tournament(1L, "Liga");
+        Team home = teamIn(10L, "A", tournament);
+        Team away = teamIn(20L, "B", tournament);
+        Player pedro = player(1L, "Pedro", home);
+        Player juan = player(2L, "Juan", home);
+        Player luis = player(3L, "Luis", away);
+        Match match = matchWithSquads(tournament, home, away, List.of(pedro, juan), List.of(luis));
+
+        service.updateMatchScorers(1L, 100L, new UpdateScorersRequest(List.of(
+                new UpdateScorersRequest.ScorerEntry(1L, 2),
+                new UpdateScorersRequest.ScorerEntry(2L, 1),
+                new UpdateScorersRequest.ScorerEntry(3L, 1))));
+
+        // 2 + 1 del local, 1 del visitante => 3-1
+        assertThat(match.getHomeGoals()).isEqualTo(3);
+        assertThat(match.getAwayGoals()).isEqualTo(1);
+        assertThat(match.getIsPlayed()).isTrue();
+        verify(matchRepository).save(match);
+    }
+
+    @Test
+    void savingScorersReplacesPreviousOnesAndSkipsZeroes() {
+        Tournament tournament = tournament(1L, "Liga");
+        Team home = teamIn(10L, "A", tournament);
+        Team away = teamIn(20L, "B", tournament);
+        Player pedro = player(1L, "Pedro", home);
+        Player luis = player(3L, "Luis", away);
+        matchWithSquads(tournament, home, away, List.of(pedro), List.of(luis));
+
+        service.updateMatchScorers(1L, 100L, new UpdateScorersRequest(List.of(
+                new UpdateScorersRequest.ScorerEntry(1L, 2),
+                new UpdateScorersRequest.ScorerEntry(3L, 0))));
+
+        // el goleo anterior se borra: el request trae la foto completa del partido
+        verify(scorerRepository).deleteByMatchId(100L);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<Scorer>> captor = ArgumentCaptor.forClass(List.class);
+        verify(scorerRepository).saveAll(captor.capture());
+        // solo se guarda a quien anotó; los ceros no ensucian la tabla
+        assertThat(captor.getValue()).hasSize(1);
+        assertThat(captor.getValue().get(0).getPlayer().getId()).isEqualTo(1L);
+        assertThat(captor.getValue().get(0).getGoals()).isEqualTo(2);
+    }
+
+    @Test
+    void correctingScorersRecalculatesTheScore() {
+        Tournament tournament = tournament(1L, "Liga");
+        Team home = teamIn(10L, "A", tournament);
+        Team away = teamIn(20L, "B", tournament);
+        Player pedro = player(1L, "Pedro", home);
+        Player luis = player(3L, "Luis", away);
+        Match match = matchWithSquads(tournament, home, away, List.of(pedro), List.of(luis));
+        match.setHomeGoals(2); // marcador previo
+        match.setAwayGoals(0);
+
+        // corrección: Pedro en realidad metió 1, no 2
+        service.updateMatchScorers(1L, 100L, new UpdateScorersRequest(List.of(
+                new UpdateScorersRequest.ScorerEntry(1L, 1))));
+
+        assertThat(match.getHomeGoals()).isEqualTo(1);
+        assertThat(match.getAwayGoals()).isZero();
+    }
+
+    @Test
+    void updateScorersThrowsWhenPlayerIsNotInEitherSquad() {
+        Tournament tournament = tournament(1L, "Liga");
+        Team home = teamIn(10L, "A", tournament);
+        Team away = teamIn(20L, "B", tournament);
+        Player pedro = player(1L, "Pedro", home);
+        matchWithSquads(tournament, home, away, List.of(pedro), List.of());
+
+        // 99 no juega en ninguno de los dos equipos
+        assertThatThrownBy(() -> service.updateMatchScorers(1L, 100L, new UpdateScorersRequest(List.of(
+                new UpdateScorersRequest.ScorerEntry(99L, 1)))))
+                .isInstanceOf(ScorerInvalidException.class);
+
+        verify(matchRepository, never()).save(any());
+        verify(scorerRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void updateScorersThrowsWhenPlayerIsRepeated() {
+        Tournament tournament = tournament(1L, "Liga");
+        Team home = teamIn(10L, "A", tournament);
+        Team away = teamIn(20L, "B", tournament);
+        Player pedro = player(1L, "Pedro", home);
+        matchWithSquads(tournament, home, away, List.of(pedro), List.of());
+
+        assertThatThrownBy(() -> service.updateMatchScorers(1L, 100L, new UpdateScorersRequest(List.of(
+                new UpdateScorersRequest.ScorerEntry(1L, 1),
+                new UpdateScorersRequest.ScorerEntry(1L, 2)))))
+                .isInstanceOf(ScorerInvalidException.class);
+
+        verify(matchRepository, never()).save(any());
+    }
+
+    @Test
+    void matchScorersListsWholeSquadWithZeroesForNonScorers() {
+        Tournament tournament = tournament(1L, "Liga");
+        Team home = teamIn(10L, "A", tournament);
+        Team away = teamIn(20L, "B", tournament);
+        Player pedro = player(1L, "Pedro", home);
+        Player juan = player(2L, "Juan", home);
+        Player luis = player(3L, "Luis", away);
+        Match match = matchWithSquads(tournament, home, away, List.of(pedro, juan), List.of(luis));
+        when(scorerRepository.findByMatchId(100L)).thenReturn(List.of(new Scorer(pedro, match, 2)));
+
+        List<ScorerDto> scorers = service.getMatchScorers(1L, 100L);
+
+        // los tres aparecen, aunque solo Pedro haya anotado
+        assertThat(scorers).hasSize(3);
+        assertThat(scorers).anySatisfy(s -> {
+            assertThat(s.getPlayerName()).isEqualTo("Pedro");
+            assertThat(s.getGoals()).isEqualTo(2);
+        });
+        assertThat(scorers).anySatisfy(s -> {
+            assertThat(s.getPlayerName()).isEqualTo("Juan");
+            assertThat(s.getGoals()).isZero();
+        });
+    }
+
+    @Test
+    void topScorersSumsGoalsAcrossMatchesAndSortsDesc() {
+        Tournament tournament = tournament(1L, "Liga");
+        Team home = teamIn(10L, "A", tournament);
+        Team away = teamIn(20L, "B", tournament);
+        Player pedro = player(1L, "Pedro", home);
+        Player luis = player(3L, "Luis", away);
+        Match match1 = new Match(tournament, home, away, null, null);
+        Match match3 = new Match(tournament, home, away, null, null);
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(playerRepository.findByTeamTournamentId(1L)).thenReturn(List.of(pedro, luis));
+        when(scorerRepository.findByMatchTournamentId(1L)).thenReturn(List.of(
+                new Scorer(pedro, match1, 2),
+                new Scorer(luis, match1, 1),
+                new Scorer(pedro, match3, 1)));
+
+        List<ScorerDto> top = service.getTopScorersPerTournament(1L);
+
+        // Pedro suma 2 + 1 de dos partidos distintos y encabeza
+        assertThat(top.get(0).getPlayerName()).isEqualTo("Pedro");
+        assertThat(top.get(0).getGoals()).isEqualTo(3);
+        assertThat(top.get(1).getPlayerName()).isEqualTo("Luis");
+        assertThat(top.get(1).getGoals()).isEqualTo(1);
     }
 }

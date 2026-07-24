@@ -1,4 +1,4 @@
-package com.tov.futtor.torneo;
+package com.tov.futtor.torneo.repository;
 
 import java.util.List;
 
