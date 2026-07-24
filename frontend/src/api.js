@@ -25,6 +25,13 @@ const jsonPost = (url, body) =>
     body: JSON.stringify(body),
   }).then(handle)
 
+const jsonPut = (url, body) =>
+  fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(handle)
+
 export const api = {
   listTournaments: () => fetch(BASE).then(handle),
 
@@ -44,4 +51,25 @@ export const api = {
 
   updateMatch: (tournamentId, matchId, homeTeamGoals, awayTeamGoals) =>
     jsonPost(`${BASE}/${tournamentId}/${matchId}/update-match`, { homeTeamGoals, awayTeamGoals }),
+
+  // Plantilla de ambos equipos con los goles que cada uno lleva en ese partido.
+  matchScorers: (tournamentId, matchId) =>
+    fetch(`${BASE}/${tournamentId}/matches/${matchId}/scorers`).then(handle),
+
+  // El marcador del partido se deriva de estos goles, por eso se manda la lista completa.
+  updateMatchScorers: (tournamentId, matchId, scorers) =>
+    jsonPut(`${BASE}/${tournamentId}/matches/${matchId}/scorers`, { scorers }),
+
+  players: (tournamentId, teamId) =>
+    fetch(`${BASE}/${tournamentId}/teams/${teamId}/players`).then(handle),
+
+  createPlayer: (tournamentId, teamId, name) =>
+    jsonPost(`${BASE}/${tournamentId}/teams/${teamId}/players`, { name }),
+
+  deletePlayer: (tournamentId, teamId, playerId) =>
+    fetch(`${BASE}/${tournamentId}/teams/${teamId}/players/${playerId}`, { method: 'DELETE' }).then(
+      handle,
+    ),
+
+  topScorers: (tournamentId) => fetch(`${BASE}/${tournamentId}/top-scorers`).then(handle),
 }

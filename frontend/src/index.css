@@ -282,3 +282,90 @@ button.generate {
   font-weight: 700;
   color: var(--accent);
 }
+
+/* --- pantalla de partido ------------------------------------------------ */
+
+.match.clickable {
+  cursor: pointer;
+}
+
+.match.clickable:hover {
+  border-color: var(--accent);
+}
+
+.score-box {
+  min-width: 34px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.chevron {
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.scoreboard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.scoreboard .side {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.scoreboard .team-name {
+  font-weight: 600;
+}
+
+.scoreboard .big-score {
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.scoreboard .dash {
+  color: var(--muted);
+}
+
+.center {
+  text-align: center;
+}
+
+.squad + .squad {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.squad h4 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+.squad .list {
+  margin-top: 10px;
+}
+
+.list-item .score {
+  width: 64px;
+  text-align: center;
+}
+
+.list-item.clickable {
+  cursor: pointer;
+}
+
+.list-item.clickable:hover {
+  border-color: var(--accent);
+}
+
+.detail-header .danger {
+  margin-left: auto;
+}
