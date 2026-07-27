@@ -34,6 +34,7 @@ import com.tov.futtor.torneo.exception.badrequest.PlayerInvalidException;
 import com.tov.futtor.torneo.exception.badrequest.ScorerInvalidException;
 import com.tov.futtor.torneo.exception.badrequest.TeamInvalidException;
 import com.tov.futtor.torneo.exception.conflict.PlayerHasScorerRecordsException;
+import com.tov.futtor.torneo.exception.conflict.TournamentHasPlayedMatchesException;
 import com.tov.futtor.torneo.exception.notfound.PlayerNotFoundException;
 import com.tov.futtor.torneo.exception.notfound.TeamNotFoundException;
 import com.tov.futtor.torneo.exception.notfound.TournamentNotFoundException;
@@ -61,6 +62,38 @@ public class TournamentService {
     public Tournament createTournament(CreateTournamentRequest request) {
         Tournament tournament = new Tournament(request.getName());
         return tournamentRepository.save(tournament);
+    }
+
+    /**
+     * Deletes a tournament and everything that hangs off it.
+     *
+     * The order goes from the leaves up to the root, since every entity points
+     * upwards with @ManyToOne and the database will not accept a foreign key
+     * left dangling. Scorer goes first because it has two parents (match and
+     * player): deleting players before scorers would break scorer.player even
+     * if the matches were already gone.
+     *
+     * A tournament with played matches holds results worth protecting, so it is
+     * only wiped when the caller explicitly asks for it.
+     */
+    @Transactional
+    public void deleteTournament(Long tournamentId, boolean force) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
+
+        if (!force) {
+            boolean hasPlayedMatches = matchRepository.findByTournamentId(tournamentId).stream()
+                    .anyMatch(Match::getIsPlayed);
+            if (hasPlayedMatches) {
+                throw new TournamentHasPlayedMatchesException(tournamentId);
+            }
+        }
+
+        scorerRepository.deleteByMatchTournamentId(tournamentId);
+        matchRepository.deleteByTournamentId(tournamentId);
+        playerRepository.deleteByTeamTournamentId(tournamentId);
+        teamRepository.deleteByTournamentId(tournamentId);
+        tournamentRepository.delete(tournament);
     }
 
     /**

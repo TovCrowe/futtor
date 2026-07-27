@@ -3,6 +3,7 @@ package com.tov.futtor.torneo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -16,6 +17,7 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -36,6 +38,7 @@ import com.tov.futtor.torneo.exception.badrequest.MatchInvalidException;
 import com.tov.futtor.torneo.exception.badrequest.ScorerInvalidException;
 import com.tov.futtor.torneo.exception.badrequest.TeamInvalidException;
 import com.tov.futtor.torneo.exception.conflict.PlayerHasScorerRecordsException;
+import com.tov.futtor.torneo.exception.conflict.TournamentHasPlayedMatchesException;
 import com.tov.futtor.torneo.exception.notfound.TeamNotFoundException;
 import com.tov.futtor.torneo.exception.notfound.TournamentNotFoundException;
 import com.tov.futtor.torneo.repository.MatchRepository;
@@ -747,5 +750,65 @@ class TournamentServiceTest {
         service.deletePlayer(1L, 10L, 1L);
 
         verify(playerRepository).delete(pedro);
+    }
+
+    @Test
+    void deleteTournamentFailsWhenThereArePlayedMatchesAndForceIsFalse() {
+        Tournament tournament = tournament(1L, "Liga");
+        Team home = teamIn(10L, "A", tournament);
+        Team away = teamIn(20L, "B", tournament);
+        Match played = new Match(tournament, home, away, 2, 1);
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(matchRepository.findByTournamentId(1L)).thenReturn(List.of(played));
+
+        assertThatThrownBy(() -> service.deleteTournament(1L, false))
+                .isInstanceOf(TournamentHasPlayedMatchesException.class);
+
+        // Los resultados ya jugados mandan: no se borra nada
+        verify(tournamentRepository, never()).delete(any());
+        verify(scorerRepository, never()).deleteByMatchTournamentId(any());
+    }
+
+    @Test
+    void deleteTournamentSucceedsWhenMatchesAreNotPlayedYet() {
+        Tournament tournament = tournament(1L, "Liga");
+        Team home = teamIn(10L, "A", tournament);
+        Team away = teamIn(20L, "B", tournament);
+        Match notPlayed = new Match(tournament, home, away, null, null);
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(matchRepository.findByTournamentId(1L)).thenReturn(List.of(notPlayed));
+
+        service.deleteTournament(1L, false);
+
+        verify(tournamentRepository).delete(tournament);
+    }
+
+    @Test
+    void deleteTournamentWithForceWipesEverythingFromLeavesToRoot() {
+        Tournament tournament = tournament(1L, "Liga");
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+
+        service.deleteTournament(1L, true);
+
+        // El orden importa: cada entidad apunta hacia arriba con @ManyToOne,
+        // así que hay que borrar de las hojas a la raíz o la FK queda colgando.
+        InOrder inOrder = inOrder(scorerRepository, matchRepository, playerRepository, teamRepository,
+                tournamentRepository);
+        inOrder.verify(scorerRepository).deleteByMatchTournamentId(1L);
+        inOrder.verify(matchRepository).deleteByTournamentId(1L);
+        inOrder.verify(playerRepository).deleteByTeamTournamentId(1L);
+        inOrder.verify(teamRepository).deleteByTournamentId(1L);
+        inOrder.verify(tournamentRepository).delete(tournament);
+
+        // Con force no se consulta si hay partidos jugados
+        verify(matchRepository, never()).findByTournamentId(any());
+    }
+
+    @Test
+    void deleteTournamentFailsWhenTournamentDoesNotExist() {
+        when(tournamentRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.deleteTournament(99L, true))
+                .isInstanceOf(TournamentNotFoundException.class);
     }
 }

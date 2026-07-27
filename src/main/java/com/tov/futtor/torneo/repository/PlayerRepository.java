@@ -12,4 +12,6 @@ public interface PlayerRepository extends JpaRepository<Player, Long> {
 
     // Un jugador conoce su torneo a través de su equipo: Player -> team -> tournament
     List<Player> findByTeamTournamentId(Long tournamentId);
+
+    void deleteByTeamTournamentId(Long tournamentId);
 }

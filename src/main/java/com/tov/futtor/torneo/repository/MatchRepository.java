@@ -8,4 +8,6 @@ import com.tov.futtor.torneo.entity.Match;
 
 public interface MatchRepository extends JpaRepository<Match, Long> {
     List<Match> findByTournamentId(Long tournamentId);
+
+    void deleteByTournamentId(Long tournamentId);
 }

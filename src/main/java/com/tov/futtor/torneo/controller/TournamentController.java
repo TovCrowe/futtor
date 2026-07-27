@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tov.futtor.torneo.TournamentService;
@@ -84,6 +85,14 @@ public class TournamentController {
     public ResponseEntity<Long> createTournament(@RequestBody @Valid CreateTournamentRequest request) {
         Tournament tournament = tournamentService.createTournament(request);
         return ResponseEntity.ok(tournament.getId());
+    }
+
+    @DeleteMapping("/{tournamentId}")
+    public ResponseEntity<Void> deleteTournament(@PathVariable Long tournamentId,
+            @RequestParam(defaultValue = "false") boolean force) {
+        log.info("Deleting tournament {} (force={})", tournamentId, force);
+        tournamentService.deleteTournament(tournamentId, force);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{tournamentId}/matches")
