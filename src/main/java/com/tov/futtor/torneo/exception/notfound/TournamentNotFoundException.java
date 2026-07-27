@@ -1,4 +1,4 @@
-package com.tov.futtor.torneo.exception;
+package com.tov.futtor.torneo.exception.notfound;
 
 
 public class TournamentNotFoundException extends NotFoundException {

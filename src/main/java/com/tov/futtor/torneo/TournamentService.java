@@ -29,12 +29,14 @@ import com.tov.futtor.torneo.entity.Player;
 import com.tov.futtor.torneo.entity.Scorer;
 import com.tov.futtor.torneo.entity.Team;
 import com.tov.futtor.torneo.entity.Tournament;
-import com.tov.futtor.torneo.exception.MatchInvalidException;
-import com.tov.futtor.torneo.exception.PlayerNotFoundException;
-import com.tov.futtor.torneo.exception.ScorerInvalidException;
-import com.tov.futtor.torneo.exception.TeamInvalidException;
-import com.tov.futtor.torneo.exception.TeamNotFoundException;
-import com.tov.futtor.torneo.exception.TournamentNotFoundException;
+import com.tov.futtor.torneo.exception.badrequest.MatchInvalidException;
+import com.tov.futtor.torneo.exception.badrequest.PlayerInvalidException;
+import com.tov.futtor.torneo.exception.badrequest.ScorerInvalidException;
+import com.tov.futtor.torneo.exception.badrequest.TeamInvalidException;
+import com.tov.futtor.torneo.exception.conflict.PlayerHasScorerRecordsException;
+import com.tov.futtor.torneo.exception.notfound.PlayerNotFoundException;
+import com.tov.futtor.torneo.exception.notfound.TeamNotFoundException;
+import com.tov.futtor.torneo.exception.notfound.TournamentNotFoundException;
 import com.tov.futtor.torneo.repository.MatchRepository;
 import com.tov.futtor.torneo.repository.PlayerRepository;
 import com.tov.futtor.torneo.repository.ScorerRepository;
@@ -333,7 +335,7 @@ public class TournamentService {
     @Transactional
     public PlayerDto getPlayerById(Long playerId) {
         Player player = playerRepository.findById(playerId)
-                .orElseThrow(() -> new PlayerNotFoundException("Player with id " + playerId + " not found"));
+                .orElseThrow(() -> new PlayerNotFoundException(playerId));
         return TournamentMapper.toPlayerDto(player);
     }
 
@@ -355,9 +357,9 @@ public class TournamentService {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new TeamNotFoundException(teamId));
         Player player = playerRepository.findById(playerId)
-                .orElseThrow(() -> new PlayerNotFoundException("Player with id " + playerId + " not found"));
+                .orElseThrow(() -> new PlayerNotFoundException(playerId));
         if (!player.getTeam().getId().equals(team.getId())) {
-            throw new PlayerNotFoundException("Player does not belong to the specified team");
+            throw new PlayerInvalidException("Player does not belong to the specified team");
         }
         player.setName(request.getName());
         playerRepository.save(player);
@@ -371,9 +373,13 @@ public class TournamentService {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new TeamNotFoundException(teamId));
         Player player = playerRepository.findById(playerId)
-                .orElseThrow(() -> new PlayerNotFoundException("Player with id " + playerId + " not found"));
+                .orElseThrow(() -> new PlayerNotFoundException(playerId));
         if (!player.getTeam().getId().equals(team.getId())) {
-            throw new PlayerNotFoundException("Player does not belong to the specified team");
+            throw new PlayerInvalidException("Player does not belong to the specified team");
+        }
+        long goals = scorerRepository.countByPlayerId(playerId);
+        if (goals > 0) {
+            throw new PlayerHasScorerRecordsException(playerId, goals);
         }
         playerRepository.delete(player);
     }

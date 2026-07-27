@@ -12,6 +12,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.FieldError;
 
+import com.tov.futtor.torneo.exception.badrequest.BadRequestException;
+import com.tov.futtor.torneo.exception.conflict.ConflictException;
+import com.tov.futtor.torneo.exception.notfound.NotFoundException;
+
 @RestControllerAdvice
 @Slf4j
 public class TournamentExceptionHandler {
@@ -25,6 +29,12 @@ public class TournamentExceptionHandler {
     @ExceptionHandler(BadRequestException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> handleBadRequestException(BadRequestException ex) {
+        return Map.of("error", ex.getMessage());
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, String> handleConflictException(ConflictException ex) {
         return Map.of("error", ex.getMessage());
     }
 

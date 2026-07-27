@@ -32,11 +32,12 @@ import com.tov.futtor.torneo.entity.Player;
 import com.tov.futtor.torneo.entity.Scorer;
 import com.tov.futtor.torneo.entity.Team;
 import com.tov.futtor.torneo.entity.Tournament;
-import com.tov.futtor.torneo.exception.MatchInvalidException;
-import com.tov.futtor.torneo.exception.ScorerInvalidException;
-import com.tov.futtor.torneo.exception.TeamInvalidException;
-import com.tov.futtor.torneo.exception.TeamNotFoundException;
-import com.tov.futtor.torneo.exception.TournamentNotFoundException;
+import com.tov.futtor.torneo.exception.badrequest.MatchInvalidException;
+import com.tov.futtor.torneo.exception.badrequest.ScorerInvalidException;
+import com.tov.futtor.torneo.exception.badrequest.TeamInvalidException;
+import com.tov.futtor.torneo.exception.conflict.PlayerHasScorerRecordsException;
+import com.tov.futtor.torneo.exception.notfound.TeamNotFoundException;
+import com.tov.futtor.torneo.exception.notfound.TournamentNotFoundException;
 import com.tov.futtor.torneo.repository.MatchRepository;
 import com.tov.futtor.torneo.repository.PlayerRepository;
 import com.tov.futtor.torneo.repository.ScorerRepository;
@@ -714,5 +715,37 @@ class TournamentServiceTest {
         assertThat(top.get(0).getGoals()).isEqualTo(3);
         assertThat(top.get(1).getPlayerName()).isEqualTo("Luis");
         assertThat(top.get(1).getGoals()).isEqualTo(1);
+    }
+
+    @Test
+    void deletePlayerFailsWhenPlayerHasGoalsRegistered() {
+        Tournament tournament = tournament(1L, "Liga");
+        Team home = teamIn(10L, "A", tournament);
+        Player pedro = player(1L, "Pedro", home);
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(home));
+        when(playerRepository.findById(1L)).thenReturn(Optional.of(pedro));
+        when(scorerRepository.countByPlayerId(1L)).thenReturn(3L);
+
+        assertThatThrownBy(() -> service.deletePlayer(1L, 10L, 1L))
+                .isInstanceOf(PlayerHasScorerRecordsException.class);
+
+        // El histórico de goleo manda: el jugador no se borra
+        verify(playerRepository, never()).delete(any());
+    }
+
+    @Test
+    void deletePlayerSucceedsWhenPlayerHasNoGoals() {
+        Tournament tournament = tournament(1L, "Liga");
+        Team home = teamIn(10L, "A", tournament);
+        Player pedro = player(1L, "Pedro", home);
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(home));
+        when(playerRepository.findById(1L)).thenReturn(Optional.of(pedro));
+        when(scorerRepository.countByPlayerId(1L)).thenReturn(0L);
+
+        service.deletePlayer(1L, 10L, 1L);
+
+        verify(playerRepository).delete(pedro);
     }
 }

@@ -14,4 +14,6 @@ public interface ScorerRepository extends JpaRepository<Scorer, Long> {
     List<Scorer> findByMatchTournamentId(Long tournamentId);
 
     void deleteByMatchId(Long matchId);
+
+    long countByPlayerId(Long playerId);
 }

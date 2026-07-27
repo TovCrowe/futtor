@@ -1,4 +1,5 @@
-package com.tov.futtor.torneo.exception;
+package com.tov.futtor.torneo.exception.badrequest;
+
 
 public class TeamInvalidException extends BadRequestException {
 

@@ -25,8 +25,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.tov.futtor.torneo.TournamentService;
 import com.tov.futtor.torneo.dto.StandingsRowDto;
 import com.tov.futtor.torneo.dto.TournamentDto;
-import com.tov.futtor.torneo.exception.TeamInvalidException;
-import com.tov.futtor.torneo.exception.TournamentNotFoundException;
+import com.tov.futtor.torneo.exception.badrequest.TeamInvalidException;
+import com.tov.futtor.torneo.exception.notfound.TournamentNotFoundException;
 
 @WebMvcTest(TournamentController.class)
 class TournamentControllerTest {
